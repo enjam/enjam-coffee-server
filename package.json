@@ -4,11 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start" : "node index"
+    "start": "node index"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.15.3"
+    "express": "^4.15.3",
+    "forever": "^0.15.3"
+  },
+  "devDependencies": {
+    "flightplan": "^0.6.17"
   }
 }
