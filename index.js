@@ -6,7 +6,8 @@ const fs = require('fs'),
       app = express(),
       firebase = require('firebase-admin'),
       serviceAccount = require('/home/deploy/serviceAccountKey.json'),
-      fb_interactions = require('./fb_interactions');
+      fb_interactions = require('./fb_interactions'),
+      particle = require('./particle');
 
 app.use(bodyParser.json());
 
@@ -19,6 +20,17 @@ firebase.initializeApp({
   credential: firebase.credential.cert(serviceAccount),
   databaseURL: 'https://enjam-coffee.firebaseio.com'
 });
+
+
+
+var ref = firebase.database().ref("/dispenser/user");
+
+// Attach an asynchronous callback to read the data at our posts reference
+ref.on("value", function(snapshot) {
+  console.log(snapshot.val());
+  particle.SetRandomPattern();
+});
+
 
 app.get('/', function (req, res) {
   res.header('Content-type', 'text/html');
