@@ -36,33 +36,34 @@ app.get('/fb', function(req, res){
 
 app.post('/fb', function(req, res){
   res.status(200).send("").end();
+  console.log("body:");
+  console.log(req.body);
   req.body.entry.forEach(entry => {
     entry.changes.forEach(change => {
       console.log(change);
-      const val = change.val;
-      const uid = val.user_id;
+      const val = change.value;
+      const uid = val.user_id || val.sender_id;
 
-      if(val.item === "like" && val.verb === "remove" && !val.post_id){
-        console.log("Remove like");
+      if(uid && val.item === "like" && !val.post_id){
+        if (val.verb === "add"){
+          fb_interactions.userAddedLikePage(uid);
+        }else if(val.verb === "remove"){
+          fb_interactions.userRemovedLikePage(uid);
+        }
       }
 
-      if(val.item === "like" && val.verb === "add" && !val.post_id){
-        fb_interactions.userLikedPage(uid);
+      if (uid && val.item === "reaction" && val.post_id){
+        if (val.verb === "add"){
+          fb_interactions.userAddedReactionPost(uid, val.post_id, val.reaction_type);
+        }else if(val.verb === "remove"){
+          fb_interactions.userRemovedReactionPost(uid, val.post_id, val.reaction_type);
+        }
       }
 
-      if (val.item === "reaction" && val.verb === "add" && val.post_id){
-        fb_interactions.userReactedPost(uid, val.post_id, val.reaction_type);
+      if (uid && val.item === "comment" && val.post_id && val.verb === "add"){
+        fb_interactions.userCommentedPost(uid, val.post_id, val.message);
       }
 
-      if (val.item === "reaction" && val.verb === "remove" && val.post_id){
-        fb_interactions.userReactedPost(uid, val.post_id, val.reaction_type);
-      }
-      /*
-      var userRef = firebase.database().ref('/likes/' + uid);
-      userRef.set({
-        like:1
-      });
-      */
     })
   });
 });
