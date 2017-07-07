@@ -1,8 +1,6 @@
-module.exports = {
-  SetRandomPattern
-};
+var GeneratedPattern = {value:''};
 
-request = require('request'),
+request = require('request');
 
 
 function startCoffeeMaker() {
@@ -68,4 +66,14 @@ function SetRandomPattern() {
       }
     }
   );
+
+  //Save generatedPattern for later use !
+  GeneratedPattern.value = out;
 }
+
+
+module.exports = {
+  SetRandomPattern,
+  startCoffeeMaker,
+  GeneratedPattern
+};

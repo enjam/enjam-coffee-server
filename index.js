@@ -31,6 +31,42 @@ ref.on("value", function(snapshot) {
   particle.SetRandomPattern();
 });
 
+var refUserPattern = firebase.database().ref("/dispenser/userpattern");
+var refDispenceState = firebase.database().ref("/dispenser/state");
+
+
+// Attach an asynchronous callback to read the data at our posts reference
+refUserPattern.on("value", function(snapshot) {
+  var userPattern = snapshot.val();
+  if(userPattern == particle.GeneratedPattern.value){
+      console.log("Correct pattern!");
+
+      refDispenceState.set("dispensing");
+
+      // Start making coffee
+      particle.startCoffeeMaker();
+  } else {
+      console.log("GeneratedPattern: "  + particle.GeneratedPattern.value);
+      console.log("Userpattern: " + userPattern);
+      console.log("Wrong pattern...");
+  }
+});
+
+app.get('/particle/coffeedone', function(req,res){
+  console.log("Coffee is done:>");
+
+
+  firebase.database().ref('/dispenser/user').once("value",function(snap){
+    firebase.database().ref('/scores/' + snap.val()).transaction(function (current_score) {
+        return current_score - 10;
+    });
+  });
+
+
+  //Done dispensing coffee
+  refDispenceState.set("ready");
+  res.send("");
+});
 
 app.get('/', function (req, res) {
   res.header('Content-type', 'text/html');

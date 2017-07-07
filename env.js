@@ -1,3 +1,3 @@
 module.exports = {
-  keyfile: 'pathtokey'
+  keyfile: '/home/mneerup/.ssh/enjam_deploy'
 };
