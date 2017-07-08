@@ -1,12 +1,16 @@
+"use strict";
+
 const fs = require('fs'),
       https = require('https'),
       express = require('express'),
       bodyParser = require('body-parser'),
       request = require('request'),
       app = express(),
-      firebase = require('firebase-admin'),
-      serviceAccount = require('/home/deploy/serviceAccountKey.json'),
+      firebase = require('./initFirebase'),
       fb_interactions = require('./fb_interactions'),
+      pattern = require('./pattern'),
+      userTexts = require('./userTexts'),
+      config = require('./config'),
       particle = require('./particle');
 
 app.use(bodyParser.json());
@@ -16,76 +20,87 @@ https.createServer({
   cert: fs.readFileSync('/etc/letsencrypt/live/enjam-drop.enjam.dk/fullchain.pem')
 }, app).listen(8080);
 
-firebase.initializeApp({
-  credential: firebase.credential.cert(serviceAccount),
-  databaseURL: 'https://enjam-coffee.firebaseio.com'
-});
+const rootRef = firebase.database().ref();
+const scoresRef = rootRef.child('scores');
+const dispenseCountRef = rootRef.child('dispenseCount');
+const infoRef = rootRef.child('info');
+const dispenserRef = rootRef.child('dispenser');
+const dispenserUserRef = dispenserRef.child('user');
+const dispenserStateRef = dispenserRef.child('state');
+const userPatternRef = dispenserRef.child('userpattern');
 
+let validationPattern = '';
+let timeoutId = 0;
 
+dispenserStateRef.on('value', function(snap) {
+  const state = snap.val();
+  switch(state){
+    case 'requesting_access':
+      validationPattern = pattern.generateRandomPattern();
+      particle.showValidationPattern(validationPattern);
+      dispenserStateRef.set('awaiting_userpattern');
+      timeoutId = setTimeout(() => {
+        dispenserUserRef.once('value').then(snap => {
+          const userId = snap.val();
+          dispenserRef.set({state: 'ready'});
+          infoRef.child(userId).set(userTexts.slowPatternSubmit());
+          particle.showValidationPattern(pattern.emptyPattern);
+        });
+      }, config.timeToSubmitPattern);
+      break;
 
-var ref = firebase.database().ref("/dispenser/user");
-
-// Attach an asynchronous callback to read the data at our posts reference
-ref.on("value", function(snapshot) {
-  console.log(snapshot.val());
-  particle.SetRandomPattern();
-});
-
-var refUserPattern = firebase.database().ref("/dispenser/userpattern");
-var refDispenceState = firebase.database().ref("/dispenser/state");
-
-
-// Attach an asynchronous callback to read the data at our posts reference
-refUserPattern.on("value", function(snapshot) {
-  var userPattern = snapshot.val();
-  if(userPattern == particle.GeneratedPattern.value){
-      console.log("Correct pattern!");
-
-      refDispenceState.set("dispensing");
-
-      // Start making coffee
-      particle.startCoffeeMaker();
-  } else {
-      console.log("GeneratedPattern: "  + particle.GeneratedPattern.value);
-      console.log("Userpattern: " + userPattern);
-      console.log("Wrong pattern...");
+    case 'validating_userpattern':
+      clearTimeout(timeoutId);
+      particle.showValidationPattern(pattern.emptyPattern);
+      dispenserRef.once('value', snap => {
+        const dispenser = snap.val();
+        if (dispenser.userpattern === validationPattern){
+          particle.dispenseCoffee();
+          dispenserStateRef.set('dispensing');
+          timeoutId = setTimeout(() => {
+            dispenserRef.set({state: 'ready'});
+            infoRef.child(dispenser.user).set(userTexts.dispenseError());
+          }, config.timeToDispense);
+        }else{
+          infoRef.child(dispenser.user).set(userTexts.wrongPattern());
+          dispenserRef.set({
+            state:'ready'
+          });
+        }
+      });
+      break;
   }
 });
 
-app.get('/particle/coffeedone', function(req,res){
-  console.log("Coffee is done:>");
-
-
-  firebase.database().ref('/dispenser/user').once("value",function(snap){
-    firebase.database().ref('/scores/' + snap.val()).transaction(function (current_score) {
-        return current_score - 10;
+//TODO: send dispense id to particle above and receive it in this webhook to ensure data integrity
+app.get('/particle/coffeedone', (req, res) => {
+  clearTimeout(timeoutId);
+  dispenserUserRef.once('value', snap => {
+    const userId = snap.val();
+    //decrement score after dispensing
+    scoresRef.child(userId).transaction(score => score - config.coffeePrice);
+    //1 free coffee at 5 dispenses
+    dispenseCountRef.child(userId).transaction(count => count + 1).then(obj => {
+      const committed = obj.committed;
+      const count = obj.snapshot.val();
+      console.log('dispense transaction committed: ' + committed);
+      console.log('snap val: ' + count);
+      if (count == 5)
+        return scoresRef.child(userId).transaction(score => score + 10);
+    }).catch(e => {
+      console.log(e);
+    });
+    infoRef.child(userId).set(userTexts.dispenseSuccess());
+    dispenserRef.set({
+      state: 'ready',
     });
   });
-
-
-  //Done dispensing coffee
-  refDispenceState.set("ready");
   res.send("");
 });
 
-app.get('/', function (req, res) {
-  res.header('Content-type', 'text/html');
-  var uid = "user_id_x";
-  var userRef = firebase.database().ref('/scores/' + uid);
-  userRef.once('value').then(function(user) {
-    var score = user.val();
-    console.log("score: " + score);
-    res.send("Your score is: " + score);
-  });
-});
-app.get('/fb', function(req, res){
-  return res.end(req.query['hub.challenge']);
-});
+app.get('/fb', (req, res) => res.send(req.query['hub.challenge']));
 
-app.post('/fb', function(req, res){
-  res.status(200).send("").end();
-  console.log("body:");
-  console.log(req.body);
+app.post('/fb', (req, res) => {
   req.body.entry.forEach(entry => {
     entry.changes.forEach(change => {
       console.log(change);
@@ -111,7 +126,7 @@ app.post('/fb', function(req, res){
       if (uid && val.item === "comment" && val.post_id && val.verb === "add"){
         fb_interactions.userCommentedPost(uid, val.post_id, val.message);
       }
-
     })
   });
+  res.send("");
 });
