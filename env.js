@@ -1,3 +1,3 @@
 module.exports = {
-  keyfile: '/home/mneerup/.ssh/enjam_deploy'
+  keyfile: 'lokal sti til ssh nøgle her'
 };
