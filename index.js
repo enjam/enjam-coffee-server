@@ -29,8 +29,8 @@ const dispenserUserRef = dispenserRef.child('user');
 const dispenserStateRef = dispenserRef.child('state');
 const userPatternRef = dispenserRef.child('userpattern');
 
-let validationPattern = '';
-let timeoutId = 0;
+let validationPattern;
+let timeoutId;
 
 dispenserStateRef.on('value', function(snap) {
   const state = snap.val();
@@ -40,6 +40,7 @@ dispenserStateRef.on('value', function(snap) {
       particle.showValidationPattern(validationPattern);
       dispenserStateRef.set('awaiting_userpattern');
       timeoutId = setTimeout(() => {
+        timeoutId = false;
         dispenserUserRef.once('value').then(snap => {
           const userId = snap.val();
           dispenserRef.set({state: 'ready'});
@@ -50,6 +51,7 @@ dispenserStateRef.on('value', function(snap) {
       break;
 
     case 'validating_userpattern':
+      if (timeoutId === false) return;
       clearTimeout(timeoutId);
       particle.showValidationPattern(pattern.emptyPattern);
       dispenserRef.once('value', snap => {
@@ -63,9 +65,7 @@ dispenserStateRef.on('value', function(snap) {
           }, config.timeToDispense);
         }else{
           infoRef.child(dispenser.user).set(userTexts.wrongPattern());
-          dispenserRef.set({
-            state:'ready'
-          });
+          dispenserRef.set({state:'ready'});
         }
       });
       break;
