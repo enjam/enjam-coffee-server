@@ -35,6 +35,14 @@ let timeoutId;
 dispenserStateRef.on('value', function(snap) {
   const state = snap.val();
   switch(state){
+    case 'ready':
+      if (timeoutId !== false){
+        timeoutId = false;
+        particle.showValidationPattern(pattern.emptyPattern);
+        clearTimeout(timeoutId);
+      }
+      break;
+
     case 'requesting_access':
       validationPattern = pattern.generateRandomPattern();
       particle.showValidationPattern(validationPattern);
