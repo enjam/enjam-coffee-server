@@ -1,5 +1,5 @@
 module.exports = {
   coffeePrice: 10,
-  timeToSubmitPattern: 7000,
-  timeToDispense: 10000,
+  timeToSubmitPattern: 10000,
+  timeToDispense: 20000,
 };
