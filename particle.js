@@ -26,7 +26,12 @@ function showValidationPattern (pattern){
   );
 }
 
+function clearValidationPattern (pattern){
+  showValidationPattern('0'.repeat(9));
+}
+
 module.exports = {
   showValidationPattern,
   dispenseCoffee,
+  clearValidationPattern,
 };

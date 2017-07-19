@@ -20,7 +20,7 @@ function inArray(haystack, needle){
   return haystack.indexOf(needle) > -1;
 }
 
-function generateRandomPattern() {
+function randomPattern() {
   var bits = new Array(3);
   var out = 0;
   var NewRandomNumber = randomIntInc(0,8);
@@ -38,7 +38,4 @@ function generateRandomPattern() {
   return leftPad((out & 0x1FF).toString(2), 9);
 }
 
-module.exports = {
-  generateRandomPattern,
-  emptyPattern: '0'.repeat(9),
-};
+module.exports = randomPattern;
