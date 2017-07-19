@@ -8,7 +8,7 @@ const fs = require('fs'),
       app = express(),
       firebase = require('./initFirebase'),
       fb_interactions = require('./fb_interactions'),
-      pattern = require('./pattern'),
+      randomPattern = require('./randomPattern'),
       userTexts = require('./userTexts'),
       config = require('./config'),
       particle = require('./particle');
@@ -35,16 +35,17 @@ let timeoutId;
 dispenserStateRef.on('value', function(snap) {
   const state = snap.val();
   switch(state){
+    
     case 'ready':
       if (timeoutId !== false){
+        clearTimeout(timeoutId);
         timeoutId = false;
         particle.showValidationPattern(pattern.emptyPattern);
-        clearTimeout(timeoutId);
       }
       break;
 
     case 'requesting_access':
-      validationPattern = pattern.generateRandomPattern();
+      validationPattern = randomPattern();
       particle.showValidationPattern(validationPattern);
       dispenserStateRef.set('awaiting_userpattern');
       timeoutId = setTimeout(() => {
@@ -53,7 +54,7 @@ dispenserStateRef.on('value', function(snap) {
           const userId = snap.val();
           dispenserRef.set({state: 'ready'});
           infoRef.child(userId).set(userTexts.slowPatternSubmit());
-          particle.showValidationPattern(pattern.emptyPattern);
+          particle.clearValidationPattern();
         });
       }, config.timeToSubmitPattern);
       break;
@@ -61,7 +62,8 @@ dispenserStateRef.on('value', function(snap) {
     case 'validating_userpattern':
       if (timeoutId === false) return;
       clearTimeout(timeoutId);
-      particle.showValidationPattern(pattern.emptyPattern);
+      timeoutId = false;
+      particle.clearValidationPattern();
       dispenserRef.once('value', snap => {
         const dispenser = snap.val();
         if (dispenser.userpattern === validationPattern){
