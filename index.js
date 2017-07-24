@@ -40,7 +40,7 @@ dispenserStateRef.on('value', function(snap) {
       if (timeoutId !== false){
         clearTimeout(timeoutId);
         timeoutId = false;
-        particle.showValidationPattern(pattern.emptyPattern);
+        particle.clearValidationPattern();
       }
       break;
 
@@ -79,11 +79,13 @@ dispenserStateRef.on('value', function(snap) {
         }
       });
       break;
+      
   }
 });
 
 //TODO: send dispense id to particle above and receive it in this webhook to ensure data integrity
 app.get('/particle/coffeedone', (req, res) => {
+  if (timeoutId === false) return;
   clearTimeout(timeoutId);
   dispenserUserRef.once('value', snap => {
     const userId = snap.val();
@@ -93,10 +95,10 @@ app.get('/particle/coffeedone', (req, res) => {
     dispenseCountRef.child(userId).transaction(count => count + 1).then(obj => {
       const committed = obj.committed;
       const count = obj.snapshot.val();
-      console.log('dispense transaction committed: ' + committed);
-      console.log('snap val: ' + count);
+      //console.log('dispense transaction committed: ' + committed);
+      //console.log('snap val: ' + count);
       if (count == 5)
-        return scoresRef.child(userId).transaction(score => score + 10);
+        return scoresRef.child(userId).transaction(score => score + config.coffeePrice);
     }).catch(e => {
       console.log(e);
     });
@@ -113,7 +115,7 @@ app.get('/fb', (req, res) => res.send(req.query['hub.challenge']));
 app.post('/fb', (req, res) => {
   req.body.entry.forEach(entry => {
     entry.changes.forEach(change => {
-      console.log(change);
+      //console.log(change);
       const val = change.value;
       const uid = val.user_id || val.sender_id;
 
