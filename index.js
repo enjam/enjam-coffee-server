@@ -21,6 +21,7 @@ https.createServer({
 }, app).listen(8080);
 
 const rootRef = firebase.database().ref();
+const logsRef = rootRef.child('logs');
 const scoresRef = rootRef.child('scores');
 const dispenseCountRef = rootRef.child('dispenseCount');
 const infoRef = rootRef.child('info');
@@ -31,11 +32,12 @@ const userPatternRef = dispenserRef.child('userpattern');
 
 let validationPattern;
 let timeoutId;
+let patternStartdate;
 
 dispenserStateRef.on('value', function(snap) {
   const state = snap.val();
   switch(state){
-    
+
     case 'ready':
       if (timeoutId !== false){
         clearTimeout(timeoutId);
@@ -45,8 +47,16 @@ dispenserStateRef.on('value', function(snap) {
       break;
 
     case 'requesting_access':
+      dispenserUserRef.once('value').then(snap => {
+        logsRef.push({
+          type: 'requested access',
+          user: snap.val(),
+          date: firebase.database.ServerValue.TIMESTAMP,
+        });
+      });
       validationPattern = randomPattern();
       particle.showValidationPattern(validationPattern);
+      patternStartdate = new Date();
       dispenserStateRef.set('awaiting_userpattern');
       timeoutId = setTimeout(() => {
         timeoutId = false;
@@ -55,6 +65,11 @@ dispenserStateRef.on('value', function(snap) {
           dispenserRef.set({state: 'ready'});
           infoRef.child(userId).set(userTexts.slowPatternSubmit());
           particle.clearValidationPattern();
+          logsRef.push({
+            type: 'pattern timeout',
+            user: userId,
+            date: firebase.database.ServerValue.TIMESTAMP,
+          });
         });
       }, config.timeToSubmitPattern);
       break;
@@ -67,6 +82,12 @@ dispenserStateRef.on('value', function(snap) {
       dispenserRef.once('value', snap => {
         const dispenser = snap.val();
         if (dispenser.userpattern === validationPattern){
+          logsRef.push({
+            type: 'correct userpattern',
+            user: dispenser.user,
+            date: firebase.database.ServerValue.TIMESTAMP,
+            duration: (new Date()) - patternStartdate,
+          })
           particle.dispenseCoffee();
           dispenserStateRef.set('dispensing');
           timeoutId = setTimeout(() => {
@@ -74,12 +95,18 @@ dispenserStateRef.on('value', function(snap) {
             infoRef.child(dispenser.user).set(userTexts.dispenseError());
           }, config.timeToDispense);
         }else{
+          logsRef.push({
+            type: 'wrong userpattern',
+            user: dispenser.user,
+            date: firebase.database.ServerValue.TIMESTAMP,
+            duration: (new Date()) - patternStartdate,
+          })
           infoRef.child(dispenser.user).set(userTexts.wrongPattern());
           dispenserRef.set({state:'ready'});
         }
       });
       break;
-      
+
   }
 });
 
