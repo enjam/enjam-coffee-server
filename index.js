@@ -11,7 +11,10 @@ const fs = require('fs'),
       randomPattern = require('./randomPattern'),
       userTexts = require('./userTexts'),
       config = require('./config'),
+      startParticipantSync = require('./participantSync'),
       particle = require('./particle');
+
+startParticipantSync();
 
 app.use(bodyParser.json());
 
