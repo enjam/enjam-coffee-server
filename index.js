@@ -14,6 +14,8 @@ const fs = require('fs'),
       startParticipantSync = require('./participantSync'),
       particle = require('./particle');
 
+console.log('server started:');
+
 startParticipantSync();
 
 app.use(bodyParser.json());
@@ -143,9 +145,13 @@ app.get('/particle/coffeedone', (req, res) => {
 app.get('/fb', (req, res) => res.send(req.query['hub.challenge']));
 
 app.post('/fb', (req, res) => {
+  console.log('facebook webhook:');
   req.body.entry.forEach(entry => {
+    console.log('facebook webhook entry:');
     entry.changes.forEach(change => {
-      //console.log(change);
+      console.log('facebook webhook entry change:');
+      console.log(change);
+
       const val = change.value;
       const uid = val.user_id || val.sender_id;
 
