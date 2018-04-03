@@ -115,6 +115,10 @@ dispenserStateRef.on('value', function(snap) {
   }
 });
 
+rootRef.child('addLights').orderByChild('timestamp').startAt(Date.now()).on('child_added', snap => {
+  particle.addLights(snap.val());
+});
+
 //TODO: send dispense id to particle above and receive it in this webhook to ensure data integrity
 app.get('/particle/coffeedone', (req, res) => {
   if (timeoutId === false) return;
